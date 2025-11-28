@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   fastapi:
     build: ./fastapi
@@ -16,36 +14,42 @@ services:
       # Config Postgres
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=avd_db
-      - DB_USER=avd
-      - DB_PASSWORD=avd
+      - DB_NAME=postgres
+      - DB_USER=root
+      - DB_PASSWORD=root
     volumes:
-      - ./data:/data   # CSV no host montado em /data no container
+      - ./data:/data # CSV no host montado em /data no container
+    networks:
+      - app_network
 
   minio:
     image: minio/minio
     container_name: minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # API S3
-      - "9001:9001"   # Console web
+      - "9000:9000" # API S3
+      - "9001:9001" # Console web
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
     volumes:
       - ./minio-data:/data
+    networks:
+      - app_network
 
   postgres:
-    image: postgres:15
+    image: postgres:17-alpine
     container_name: postgres
     environment:
-      - POSTGRES_USER=avd
-      - POSTGRES_PASSWORD=avd
-      - POSTGRES_DB=avd_db
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=postgres
     ports:
       - "5432:5432"
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - database_volume:/var/lib/postgresql/data
+    networks:
+      - app_network
 
   jupyter:
     image: jupyter/scipy-notebook:latest
@@ -59,3 +63,12 @@ services:
     depends_on:
       - minio
       - postgres
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  database_volume:
