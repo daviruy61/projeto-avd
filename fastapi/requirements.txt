@@ -5,3 +5,4 @@ pyarrow
 minio
 scikit-learn
 psycopg2-binary
+pyarrow
