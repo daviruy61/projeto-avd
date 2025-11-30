@@ -11,14 +11,16 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
-      # Config Postgres
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=postgres
       - DB_USER=root
       - DB_PASSWORD=root
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
     volumes:
-      - ./data:/data # CSV no host montado em /data no container
+      - ./data:/data
     networks:
       - app_network
 
@@ -27,8 +29,8 @@ services:
     container_name: minio
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000" # API S3
-      - "9001:9001" # Console web
+      - "9000:9000"
+      - "9001:9001"
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
@@ -63,6 +65,25 @@ services:
     depends_on:
       - minio
       - postgres
+    networks:
+      - app_network
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.1
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root s3://mlflow-artifacts/
+      --host 0.0.0.0
+    depends_on:
+      - minio
     networks:
       - app_network
 

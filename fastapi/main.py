@@ -11,6 +11,9 @@ from psycopg2 import connect
 from psycopg2.extras import execute_values
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+import mlflow
+from sklearn.metrics import silhouette_score
+import mlflow.sklearn
 
 # ---------------------------------------------------------------------
 # Configuração básica do app
@@ -20,6 +23,12 @@ app = FastAPI(
     description="Ingestão, clusterização e persistência de dados de vento (CSV INMET) para MinIO + PostgreSQL.",
     version="1.3.0",
 )
+
+#configuração mlflow
+
+# MLflow: apontar para o serviço mlflow do docker-compose
+mlflow.set_tracking_uri("http://mlflow:5000")
+mlflow.set_experiment("vento_clusters_diarios")
 
 # ---------------------------------------------------------------------
 # Configuração MinIO
@@ -282,7 +291,10 @@ def compute_daily_clusters(k: int):
     labels = model.fit_predict(X_scaled)
     df_day["cluster"] = labels
 
-    # 7) Resumo por cluster
+    # 7) Métrica de qualidade (silhouette)
+    sil_score = silhouette_score(X_scaled, labels)
+
+    # 8) Resumo por cluster
     cluster_summary = (
         df_day.groupby("cluster")
         .agg(
@@ -295,6 +307,36 @@ def compute_daily_clusters(k: int):
         )
         .reset_index()
     )
+
+    # 9) Log no MLflow
+    with mlflow.start_run(run_name=f"kmeans_daily_k{k}"):
+        # parâmetros
+        mlflow.log_param("k", k)
+        mlflow.log_param("features", ",".join(features))
+        mlflow.log_param("parquet_usado", parquet_name)
+
+        # métricas
+        mlflow.log_metric("silhouette", float(sil_score))
+        mlflow.log_metric("num_dias", int(len(df_day)))
+
+        # modelo
+        mlflow.sklearn.log_model(model, artifact_path="model")
+
+        # artefatos (opcional, mas muito legal para o relatório)
+        # salva df_day e summary como CSVs temporários em memória
+        buf_day = StringIO()
+        df_day.to_csv(buf_day, index=False)
+        buf_day.seek(0)
+        with open("/tmp/vento_clusters_diarios.csv", "w") as f:
+            f.write(buf_day.getvalue())
+        mlflow.log_artifact("/tmp/vento_clusters_diarios.csv", artifact_path="data")
+
+        buf_sum = StringIO()
+        cluster_summary.to_csv(buf_sum, index=False)
+        buf_sum.seek(0)
+        with open("/tmp/vento_clusters_summary.csv", "w") as f:
+            f.write(buf_sum.getvalue())
+        mlflow.log_artifact("/tmp/vento_clusters_summary.csv", artifact_path="data")
 
     return df_day, cluster_summary, parquet_name
 

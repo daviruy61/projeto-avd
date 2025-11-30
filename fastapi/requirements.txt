@@ -5,4 +5,5 @@ pyarrow
 minio
 scikit-learn
 psycopg2-binary
-pyarrow
+mlflow-skinny==2.14.1
+boto3
