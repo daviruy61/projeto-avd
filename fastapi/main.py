@@ -11,18 +11,46 @@ from psycopg2 import connect
 from psycopg2.extras import execute_values
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import mlflow
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import silhouette_score
+import mlflow
 import mlflow.sklearn
+from mlflow import MlflowClient, register_model
+from pydantic import BaseModel
+import mlflow.pyfunc
 
-# ---------------------------------------------------------------------
 # Configuração básica do app
-# ---------------------------------------------------------------------
 app = FastAPI(
     title="Pipeline INMET - Vento",
     description="Ingestão, clusterização e persistência de dados de vento (CSV INMET) para MinIO + PostgreSQL.",
     version="1.3.0",
 )
+
+MODEL_NAME = "vento_clusters_diarios_kmeans"
+MODEL_ALIAS = "Production"
+
+class WindDayInput(BaseModel):
+    u: float
+    v: float
+    vento_velocidade: float
+    vento_rajada: float
+
+
+def load_production_model():
+    """
+    Carrega o modelo 'Production' do Model Registry do MLflow.
+    """
+    model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
+    try:
+        model = mlflow.pyfunc.load_model(model_uri)
+        return model
+    except Exception as e:
+        # Devolve um erro 500 se não conseguir carregar o modelo
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao carregar modelo do MLflow: {str(e)}"
+        )
+
 
 #configuração mlflow
 
@@ -30,9 +58,7 @@ app = FastAPI(
 mlflow.set_tracking_uri("http://mlflow:5000")
 mlflow.set_experiment("vento_clusters_diarios")
 
-# ---------------------------------------------------------------------
 # Configuração MinIO
-# ---------------------------------------------------------------------
 minio_client = Minio(
     "minio:9000",
     access_key="minioadmin",
@@ -43,9 +69,7 @@ minio_client = Minio(
 BUCKET_NAME = "inmet-raw"
 PREFIX = "wind/raw/"
 
-# ---------------------------------------------------------------------
 # Configuração Postgres (via variáveis de ambiente)
-# ---------------------------------------------------------------------
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "postgres")
@@ -107,9 +131,7 @@ def root():
     }
 
 
-# ---------------------------------------------------------------------
 # Utilitário: lê o parquet mais recente do MinIO
-# ---------------------------------------------------------------------
 def load_latest_parquet():
     objects = list(
         minio_client.list_objects(BUCKET_NAME, prefix=PREFIX, recursive=True)
@@ -130,9 +152,7 @@ def load_latest_parquet():
     return df, latest_obj.object_name
 
 
-# ---------------------------------------------------------------------
 # Rota de ingestão: lê CSV bruto do INMET e grava Parquet no MinIO
-# ---------------------------------------------------------------------
 @app.post("/ingest/wind")
 def ingest_wind():
     try:
@@ -231,9 +251,7 @@ def ingest_wind():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ---------------------------------------------------------------------
 # Utilitário: calcula clusters diários e retorna df_day + resumo
-# ---------------------------------------------------------------------
 def compute_daily_clusters(k: int):
     df, parquet_name = load_latest_parquet()
 
@@ -267,32 +285,29 @@ def compute_daily_clusters(k: int):
     df_day["data"] = pd.to_datetime(df_day["data"], format="%Y/%m/%d")
     df_day = df_day.sort_values("data").reset_index(drop=True)
 
-    # 4) Seleção das features
     features = ["u", "v", "vento_velocidade", "vento_rajada"]
-    X = df_day[features]
+    X = df_day[features].dropna()
 
-    # Remover linhas inválidas
-    mask = X.notna().all(axis=1)
-    df_day = df_day[mask].reset_index(drop=True)
-    X = X[mask]
+    # Pipeline: scaler + kmeans
+    pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("kmeans", KMeans(n_clusters=k, random_state=42, n_init="auto")),
+    ])
 
-    if len(df_day) < k:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Número de dias válidos ({len(df_day)}) é menor que k={k}.",
-        )
+    # Treina o pipeline diretamente nos dados crus
+    pipeline.fit(X)
 
-    # 5) Normalização
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    # Labels vêm do KMeans dentro do pipeline
+    labels = pipeline.named_steps["kmeans"].labels_
 
-    # 6) K-Means
-    model = KMeans(n_clusters=k, random_state=42, n_init="auto")
-    labels = model.fit_predict(X_scaled)
+    # Ajusta df_day para ter apenas as linhas válidas
+    df_day = df_day.loc[X.index].copy()
     df_day["cluster"] = labels
 
-    # 7) Métrica de qualidade (silhouette)
+    # Para calcular silhouette, usamos os dados escalados pelo pipeline
+    X_scaled = pipeline.named_steps["scaler"].transform(X)
     sil_score = silhouette_score(X_scaled, labels)
+
 
     # 8) Resumo por cluster
     cluster_summary = (
@@ -309,18 +324,46 @@ def compute_daily_clusters(k: int):
     )
 
     # 9) Log no MLflow
-    with mlflow.start_run(run_name=f"kmeans_daily_k{k}"):
-        # parâmetros
+    model_name = "vento_clusters_diarios_kmeans"
+
+    with mlflow.start_run(run_name=f"kmeans_daily_k{k}") as run:
+        # --------- parâmetros ----------
         mlflow.log_param("k", k)
         mlflow.log_param("features", ",".join(features))
         mlflow.log_param("parquet_usado", parquet_name)
 
-        # métricas
+        # --------- métricas ------------
         mlflow.log_metric("silhouette", float(sil_score))
         mlflow.log_metric("num_dias", int(len(df_day)))
 
-        # modelo
-        mlflow.sklearn.log_model(model, artifact_path="model")
+        # --------- modelo --------------
+        mlflow.sklearn.log_model(pipeline, artifact_path="model")
+
+        # --------- artefatos CSV -------
+        tmp_day = "/tmp/vento_clusters_diarios.csv"
+        tmp_sum = "/tmp/vento_clusters_summary.csv"
+
+        df_day.to_csv(tmp_day, index=False)
+        cluster_summary.to_csv(tmp_sum, index=False)
+
+        mlflow.log_artifact(tmp_day, artifact_path="data")
+        mlflow.log_artifact(tmp_sum, artifact_path="data")
+
+        # --------- registrar modelo no Model Registry ---------
+        model_uri = f"runs:/{run.info.run_id}/model"
+
+        registered_model = register_model(
+            model_uri=model_uri,
+            name=model_name,
+        )
+
+        # (Opcional) marcar a versão mais recente com um alias, ex: "Production"
+        client = MlflowClient()
+        client.set_registered_model_alias(
+            name=model_name,
+            alias="Production",
+            version=registered_model.version,
+        )
 
         # artefatos (opcional, mas muito legal para o relatório)
         # salva df_day e summary como CSVs temporários em memória
@@ -341,9 +384,7 @@ def compute_daily_clusters(k: int):
     return df_day, cluster_summary, parquet_name
 
 
-# ---------------------------------------------------------------------
 # Rota JSON: clusters diários
-# ---------------------------------------------------------------------
 @app.get("/clusters/daily")
 def clusters_daily(k: int = 4):
     """
@@ -366,9 +407,7 @@ def clusters_daily(k: int = 4):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ---------------------------------------------------------------------
 # Rota CSV: clusters diários
-# ---------------------------------------------------------------------
 @app.get("/clusters/daily/csv")
 def clusters_daily_csv(k: int = 4):
     """
@@ -395,11 +434,46 @@ def clusters_daily_csv(k: int = 4):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/predict/cluster")
+def predict_cluster(payload: WindDayInput):
+    """
+    Usa o modelo registrado no MLflow para prever o cluster diário
+    a partir de (u, v, velocidade, rajada).
+    """
+    # Carrega o modelo Production
+    model = load_production_model()
+
+    # Monta um DataFrame com as features na mesma ordem/nomes do treinamento
+    data = pd.DataFrame([{
+        "u": payload.u,
+        "v": payload.v,
+        "vento_velocidade": payload.vento_velocidade,
+        "vento_rajada": payload.vento_rajada,
+    }])
+
+    try:
+        # Como o modelo é um Pipeline (scaler + kmeans), basta chamar predict
+        preds = model.predict(data)
+        cluster = int(preds[0])
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao executar predição: {str(e)}"
+        )
+
+    return {
+        "input": payload.dict(),
+        "cluster_previsto": cluster,
+        "modelo": {
+            "name": MODEL_NAME,
+            "alias": MODEL_ALIAS,
+        },
+    }
 
 
-# ---------------------------------------------------------------------
+
 # Rota POST: persiste clusters diários no PostgreSQL
-# ---------------------------------------------------------------------
 @app.post("/clusters/daily/persist")
 def clusters_daily_persist(k: int = 4):
     """
