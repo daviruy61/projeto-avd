@@ -1,29 +1,11 @@
-[0.019s][info][gc] Using G1
-[0.020s][debug][gc] ConcGCThreads: 3 offset 22
-[0.020s][debug][gc] ParallelGCThreads: 10
-[0.021s][debug][gc] Initialize mark stack with 4096 chunks, maximum 524288
-[0.924s][info ][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 100M->7M(2000M) 2.717ms
-[1.362s][info ][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 112M->9M(2000M) 3.419ms
-[1.660s][info ][gc] GC(2) Pause Young (Concurrent Start) (Metadata GC Threshold) 132M->12M(2000M) 4.108ms
-[1.660s][info ][gc] GC(3) Concurrent Mark Cycle
-[1.665s][info ][gc] GC(3) Pause Remark 13M->13M(2000M) 1.242ms
-[1.665s][info ][gc] GC(3) Pause Cleanup 13M->13M(2000M) 0.003ms
-[1.668s][info ][gc] GC(3) Concurrent Mark Cycle 7.282ms
-[2.949s][info ][gc] GC(4) Pause Young (Concurrent Start) (Metadata GC Threshold) 487M->28M(2000M) 9.657ms
-[2.950s][info ][gc] GC(5) Concurrent Mark Cycle
-[2.956s][info ][gc] GC(5) Pause Remark 29M->29M(2000M) 1.455ms
-[2.956s][info ][gc] GC(5) Pause Cleanup 29M->29M(2000M) 0.003ms
-[2.959s][info ][gc] GC(5) Concurrent Mark Cycle 9.029ms
-[4.490s][info ][gc] GC(6) Pause Young (Normal) (G1 Evacuation Pause) 437M->39M(2000M) 10.022ms
-[4.775s][info ][gc] GC(7) Pause Young (Concurrent Start) (Metadata GC Threshold) 97M->41M(2000M) 11.710ms
-[4.775s][info ][gc] GC(8) Concurrent Mark Cycle
-[4.786s][info ][gc] GC(8) Pause Remark 41M->41M(2000M) 2.724ms
-[4.788s][info ][gc] GC(8) Pause Cleanup 42M->42M(2000M) 0.185ms
-[4.791s][info ][gc] GC(8) Concurrent Mark Cycle 16.197ms
-[8.218s][info ][gc] GC(9) Pause Young (Normal) (G1 Evacuation Pause) 928M->58M(2000M) 16.675ms
-[8.417s][info ][gc] GC(10) Pause Young (Concurrent Start) (Metadata GC Threshold) 101M->59M(2000M) 12.820ms
-[8.418s][info ][gc] GC(11) Concurrent Mark Cycle
-[8.432s][info ][gc] GC(11) Pause Remark 60M->60M(2000M) 3.125ms
-[8.434s][info ][gc] GC(11) Pause Cleanup 60M->60M(2000M) 0.184ms
-[8.436s][info ][gc] GC(11) Concurrent Mark Cycle 18.851ms
-[12.112s][info ][gc] GC(12) Pause Young (Normal) (G1 Evacuation Pause) 1208M->96M(2000M) 27.522ms
+[0.071s][info][gc] Using G1
+[0.073s][debug][gc] ConcGCThreads: 3 offset 22
+[0.073s][debug][gc] ParallelGCThreads: 10
+[0.073s][debug][gc] Initialize mark stack with 4096 chunks, maximum 524288
+[2.444s][info ][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 100M->7M(2000M) 7.398ms
+[3.977s][info ][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 112M->9M(2000M) 82.991ms
+[5.146s][info ][gc] GC(2) Pause Young (Concurrent Start) (Metadata GC Threshold) 122M->10M(2000M) 8.331ms
+[5.147s][info ][gc] GC(3) Concurrent Mark Cycle
+[5.167s][info ][gc] GC(3) Pause Remark 12M->12M(2000M) 3.050ms
+[5.168s][info ][gc] GC(3) Pause Cleanup 12M->12M(2000M) 0.012ms
+[5.174s][info ][gc] GC(3) Concurrent Mark Cycle 27.616ms

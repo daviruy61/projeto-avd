@@ -2,6 +2,8 @@ services:
   fastapi:
     build: ./fastapi
     container_name: fastapi
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     depends_on:
@@ -19,8 +21,12 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
+      - TB_URL=http://thingsboard:8080
+      - TB_TOKEN_BRUTO=${TB_TOKEN_BRUTO}
+      - TB_TOKEN_TRATADO=${TB_TOKEN_TRATADO}
     volumes:
       - ./data:/data
+      - ./fastapi:/app
     networks:
       - app_network
 

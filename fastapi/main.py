@@ -18,6 +18,7 @@ import mlflow.sklearn
 from mlflow import MlflowClient, register_model
 from pydantic import BaseModel
 import mlflow.pyfunc
+import requests
 
 # Configuração básica do app
 app = FastAPI(
@@ -25,6 +26,35 @@ app = FastAPI(
     description="Ingestão, clusterização e persistência de dados de vento (CSV INMET) para MinIO + PostgreSQL.",
     version="1.3.0",
 )
+
+TB_URL = os.getenv("TB_URL", "http://thingsboard:8080")
+TB_TOKEN_BRUTO = os.getenv("TB_TOKEN_BRUTO")
+TB_TOKEN_TRATADO = os.getenv("TB_TOKEN_TRATADO")
+
+RAW_CSV_PATH = "/data/raw/INMET_NE_PE_A341_CARUARU_01-01-2024_A_31-12-2024.CSV"
+RAW_CSV_SKIPROWS = 8  # ou o valor que você já usa na ingest_wind
+
+def send_telemetry_to_thingsboard(token: str, payload: dict):
+    """
+    Envia um JSON de telemetria para o dispositivo no ThingsBoard
+    via API HTTP.
+    """
+    if not token:
+        raise HTTPException(
+            status_code=500,
+            detail="Token do ThingsBoard não configurado (TB_TOKEN_BRUTO / TB_TOKEN_TRATADO).",
+        )
+
+    url = f"{TB_URL}/api/v1/{token}/telemetry"
+
+    try:
+        resp = requests.post(url, json=payload, timeout=5)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Erro ao chamar ThingsBoard: {str(e)}",
+        )
 
 MODEL_NAME = "vento_clusters_diarios_kmeans"
 MODEL_ALIAS = "Production"
@@ -405,6 +435,90 @@ def clusters_daily(k: int = 4):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/thingsboard/raw/send")
+def send_raw_csv_to_thingsboard():
+    """
+    Lê o CSV bruto em data/raw e envia TODAS as linhas como telemetria
+    para o dispositivo de dados brutos no ThingsBoard.
+    """
+    if not TB_TOKEN_BRUTO:
+        raise HTTPException(
+            status_code=500,
+            detail="TB_TOKEN_BRUTO não configurado nas variáveis de ambiente.",
+        )
+
+    try:
+        # Lê o CSV cru (mas pulando as linhas até começar os dados reais)
+        df = pd.read_csv(
+            RAW_CSV_PATH,
+            sep=";",                # ajuste se o separador for outro
+            skiprows=RAW_CSV_SKIPROWS,
+            encoding="latin1",      # ou "utf-8", depende do arquivo
+        )
+
+        # Remove linhas completamente vazias
+        df = df.dropna(how="all")
+
+        # Sanitiza nomes de colunas para virarem chaves de telemetria
+        def sanitize_col(col: str) -> str:
+            return (
+                col.strip()
+                .lower()
+                .replace(" ", "_")
+                .replace("(", "")
+                .replace(")", "")
+                .replace("/", "_")
+                .replace("%", "pct")
+                .replace("º", "")
+                .replace("°", "")
+            )
+
+        df = df.rename(columns={c: sanitize_col(c) for c in df.columns})
+
+        sent = 0
+        for _, row in df.iterrows():
+            # Converte a linha em dict, tratando NaN para None
+            payload = {
+                "ts": 0,
+                "values": {}
+            }
+            
+            data_from_csv = None
+            for k, v in row.to_dict().items():
+                if pd.isna(v):
+                    payload[k] = None
+                else:
+                    if(k == "data"):
+                        data_from_csv = v
+                    elif(k == "hora_utc"):
+                        data_hora_str = data_from_csv + ":" + v
+                        dt = datetime.strptime(data_hora_str, "%Y/%m/%d:%H%M %Z")
+                        timestamp_ms = int(dt.timestamp() * 1000)
+                        payload["ts"] = timestamp_ms
+                    else:
+                        payload["values"][k] = v
+
+            # Envia a linha inteira como um "snapshot" de telemetria
+            send_telemetry_to_thingsboard(TB_TOKEN_BRUTO, payload)
+            sent += 1
+
+        return {
+            "status": "ok",
+            "arquivo": RAW_CSV_PATH,
+            "linhas_enviadas": sent,
+        }
+
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Arquivo CSV bruto não encontrado em {RAW_CSV_PATH}",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 # Rota CSV: clusters diários
