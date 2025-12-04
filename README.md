@@ -1,4 +1,4 @@
-# Agrupagemnto de Padrões de Vento
+# Agrupamento de Padrões de Vento
 Projeto de análise de dados meteorológicos para monitoramento de padrões de vento em Pernambuco.
 
 Desenvolvido por Antonio Paulo Araujo, Clara Machado, Davi Gomes, Heloísa Tanaka, João Pedro Fontes, Larissa Sobrinho, Leonardo Cardoso - **C.E.S.A.R School**.
@@ -71,3 +71,4 @@ O pipeline de dados funciona de forma contínua e automatizada:
    ```
    docker compose up -d
    ```
+
