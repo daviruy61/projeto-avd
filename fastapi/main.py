@@ -518,6 +518,70 @@ def send_raw_csv_to_thingsboard():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/thingsboard/data/send")
+def send_data_postgres_to_thingsboard():
+    """
+    Recupera os dados tratados do PostgreSQL e os envia para o ThingsBoard.
+    """
+    if not TB_TOKEN_TRATADO:
+        raise HTTPException(
+            status_code=500,
+            detail="TB_TOKEN_TRATADO não configurado nas variáveis de ambiente.",
+        )
+
+    try:
+        # Conexão com o PostgreSQL
+        conn = get_pg_connection()
+        try:
+            # Query para recuperar os dados tratados da tabela `vento_clusters_diarios`
+            query = """
+            SELECT data, u, v, vento_velocidade, vento_rajada, vento_direcao, cluster
+            FROM vento_clusters_diarios
+            ORDER BY data;
+            """
+            df = pd.read_sql(query, conn)
+
+        finally:
+            conn.close()
+
+        sent = 0
+        for _, row in df.iterrows():
+            # Converte a linha em dict, tratando NaN para None
+            payload = {
+                "ts": 0,
+                "values": {}
+            }
+
+            # A data precisa ser convertida em timestamp (ms desde 1970)
+            timestamp_ms = int(pd.to_datetime(row['data']).timestamp() * 1000)
+            payload["ts"] = timestamp_ms
+
+            # Atribui os valores das colunas no payload
+            for column in df.columns:
+                if pd.notna(row[column]):
+                    if column == "data": 
+                        continue
+                    payload["values"][column] = row[column]
+
+            print(payload)
+
+            # Envia para o ThingsBoard
+            send_telemetry_to_thingsboard(TB_TOKEN_TRATADO, payload)
+            sent += 1
+
+        return {
+            "status": "ok",
+            "linhas_enviadas": sent,
+            "source": "PostgreSQL",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 
