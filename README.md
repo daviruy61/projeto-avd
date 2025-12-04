@@ -53,21 +53,21 @@ O pipeline de dados funciona de forma contínua e automatizada:
 
 2. Criar o database do Thingsboard
    ```
-    docker exec -it postgres psql -U root postgres
+   docker exec -it postgres psql -U root postgres
     
-    CREATE DATABASE thingsboard;
+   CREATE DATABASE thingsboard;
     
-    CREATE USER root WITH PASSWORD 'root';
+   CREATE USER root WITH PASSWORD 'root';
     
-    GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
+   GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
    ```
 
-3. Rodar instalação do Thingsboard (schema + dados)
-  ```
-    docker compose run --rm -e INSTALL_TB=true -e LOAD_DEMO=true thingsboard
-  ```
+4. Rodar instalação do Thingsboard (schema + dados)
+   ```
+   docker compose run --rm -e INSTALL_TB=true -e LOAD_DEMO=true thingsboard
+   ```
 
 4. Subir todos os serviços
    ```
-     docker compose up -d
+   docker compose up -d
    ```
