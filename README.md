@@ -60,6 +60,12 @@ O pipeline de dados funciona de forma contínua e automatizada:
    CREATE USER root WITH PASSWORD 'root';
     
    GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
+
+   CREATE DATABASE trendz;
+    
+   CREATE USER root WITH PASSWORD 'root';
+    
+   GRANT ALL PRIVILEGES ON DATABASE trendz TO root;
    ```
 
 4. Rodar instalação do Thingsboard (schema + dados)
@@ -71,4 +77,5 @@ O pipeline de dados funciona de forma contínua e automatizada:
    ```
    docker compose up -d
    ```
+
 
