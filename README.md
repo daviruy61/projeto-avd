@@ -60,12 +60,6 @@ O pipeline de dados funciona de forma contínua e automatizada:
    CREATE USER root WITH PASSWORD 'root';
     
    GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
-
-   CREATE DATABASE trendz;
-    
-   CREATE USER root WITH PASSWORD 'root';
-    
-   GRANT ALL PRIVILEGES ON DATABASE trendz TO root;
    ```
 
 4. Rodar instalação do Thingsboard (schema + dados)
@@ -87,4 +81,5 @@ O pipeline de dados funciona de forma contínua e automatizada:
 - `fastapi` (porta 8000)
 
 6. Idealmente para inicializar a análise de dados rode os metodos posts e gets do fastapi e rode os notebooks Jupyter
+
 
