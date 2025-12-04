@@ -60,6 +60,8 @@ O pipeline de dados funciona de forma contínua e automatizada:
    CREATE USER root WITH PASSWORD 'root';
     
    GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
+
+   exit
    ```
 
 4. Rodar instalação do Thingsboard (schema + dados)
@@ -81,6 +83,7 @@ O pipeline de dados funciona de forma contínua e automatizada:
 - `fastapi` (porta 8000)
 
 6. Idealmente para inicializar a análise de dados rode os metodos posts e gets do fastapi e rode os notebooks Jupyter, para a visualização do thingsboard lembre de criar sua .env e inserir os tokens dos dispositivos criados na sua maquina local
+
 
 
 
