@@ -1,5 +1,8 @@
 # projeto-avd
 
+# Requisitos
+usar idealmente wsl
+
 # 1) Subir os serviços base
 ```
 docker compose up -d postgres minio mlflow fastapi jupyter
@@ -19,7 +22,7 @@ CREATE DATABASE thingsboard;
 
 CREATE USER root WITH PASSWORD 'root';
 
-GRANT ALL PRIVILEGES ON DATABASE trendz TO root;
+GRANT ALL PRIVILEGES ON DATABASE thingsboard TO root;
 ```
 
 # 3) Rodar instalação do ThingsBoard (schema + dados demo)

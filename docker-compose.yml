@@ -120,6 +120,7 @@ services:
       - TB_API_URL=http://thingsboard:8080
       - TRENDZ_LICENSE_SECRET=${TRENDZ_LICENSE_SECRET}
       - TRENDZ_LICENSE_INSTANCE_DATA_FILE=/data/license.data
+      - JWT_TOKEN_SIGNING_KEY=a2hzbnJJYnZEZ3N4WWpNVzVEOHB4T3FnUUpiZWxYRXU0UnRFYWRjWkl6WHU1Wkc1R1lFa0dpRm1JeFNjZkRkTw==
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/trendz
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=root
@@ -134,7 +135,6 @@ services:
     networks:
       - app_network
     # testar isso
-
 
 
 networks:
