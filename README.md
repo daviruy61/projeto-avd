@@ -78,4 +78,13 @@ O pipeline de dados funciona de forma contínua e automatizada:
    docker compose up -d
    ```
 
+5. Após isso você já pode usar o projeto em cada porta respectiva
+
+- `jupyter_app` (porta 8889)
+- `mlflow` (porta 5000)
+- `minio` (portas 9000 e 9001)
+- `thingssboard` (porta 8080)
+- `fastapi` (porta 8000)
+
+6. Idealmente para inicializar a análise de dados rode os metodos posts e gets do fastapi e rode os notebooks Jupyter
 
