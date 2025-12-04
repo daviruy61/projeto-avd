@@ -1,4 +1,4 @@
 .env
 __pycache__
-trendz-data
-trendz-logs
+trendz-data/
+trendz-logs/
