@@ -46,12 +46,20 @@ O pipeline de dados funciona de forma contínua e automatizada:
 
 ## Como Executar o Projeto
 
-1. Subir os serviços base
+Idealmente usar wsl para rodar o docker assim como foi usado na produção do projeto
+
+Clonar o repositorio
+   ```
+   git clone https://github.com/daviruy61/projeto-avd.git
+   ```
+
+Na raiz do projeto:
+Subir os serviços base
    ```
    docker compose up -d postgres minio mlflow fastapi jupyter
    ```
 
-2. Criar o database do Thingsboard
+Criar o database do Thingsboard
    ```
    docker exec -it postgres psql -U root postgres
     
@@ -64,17 +72,17 @@ O pipeline de dados funciona de forma contínua e automatizada:
    exit
    ```
 
-4. Rodar instalação do Thingsboard (schema + dados)
+Rodar instalação do Thingsboard (schema + dados)
    ```
    docker compose run --rm -e INSTALL_TB=true -e LOAD_DEMO=true thingsboard
    ```
 
-4. Subir todos os serviços
+Subir todos os serviços
    ```
    docker compose up -d
    ```
 
-5. Após isso você já pode usar o projeto em cada porta respectiva
+Após isso você já pode usar o projeto em cada porta respectiva
 
 - `jupyter_app` (porta 8889)
 - `mlflow` (porta 5000)
@@ -82,8 +90,18 @@ O pipeline de dados funciona de forma contínua e automatizada:
 - `thingssboard` (porta 8080)
 - `fastapi` (porta 8000)
 
-6. Idealmente para inicializar a análise de dados rode os metodos posts e gets do fastapi e rode os notebooks Jupyter, para a visualização do thingsboard lembre de criar sua .env e inserir os tokens dos dispositivos criados na sua maquina local
+Idealmente para inicializar a análise de dados rode todos os metodos posts e gets do fastapi e rode os notebooks Jupyter, para a visualização do thingsboard lembre de criar sua .env e inserir os tokens dos dispositivos criados na sua maquina local
 
+aqui está um exemplo de .env
+   ```
+   TRENDZ_LICENSE_SECRET=sU40jFSeDv7F4W9Y5rqgX1Ca
+   
+   TB_URL=http://thingsboard:8080
+   TB_TOKEN_BRUTO=0rvhPomjike6PxosUdtt
+   TB_TOKEN_TRATADO=nwArAZomHwCwx7uiXJn1
+   ```
 
+Para a visualização dos gráficos interativos no thingsboard, basta ajustar sua .env de acordo com os dispositivos locais criados em sua máquina e importar os dashboards .json do repositório e rodar os métodos send_raw_csv_to_thingsboard para dados brutos e send_data_postgres_to_thingsboard para os dados tratados
 
+ 
 
